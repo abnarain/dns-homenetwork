@@ -1,0 +1,11 @@
+B1;2305;0cMeasures uncached lookup times to alexa's top 100 sites from Google, OpenDNS etc
+java -jar browsermob-dns-perf.jar
+for specific dns lookups
+java -jar browsermob-dns-perf.jar 123.456.789.012 
+
+#for cachehitrate
+add in crontab -e
+0 0,2,4,6,8,10,12,14,16,18,20,22 * * * python ~/CACHEHITRATE/DNStop.py 2>> ~/CACHEHITRATE/top_errors
+5 0,2,4,6,8,10,12,14,16,18,20,22 * * * python ~/CACHEHITRATE/DNSbottom.py 2>> ~/CACHEHITRATE/bottom_errors
+
+

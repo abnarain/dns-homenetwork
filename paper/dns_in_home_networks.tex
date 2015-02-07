@@ -1,0 +1,237 @@
+\documentclass[twocolumn]{article}
+\author{\bf Nick Feamster, Abhinav Narain}
+\date{\today}
+%% The usual stuff that sits
+%% between \documentclass
+%% and \begin{document}
+\usepackage{subfig}
+\usepackage{caption}
+\usepackage[margin=0.8in]{geometry}
+\setlength{\parindent}{0pt}
+\usepackage{graphicx}
+\bibliographystyle{plain}
+\begin{document}
+\normalsize
+\twocolumn[%
+\centerline{\Large \bf Analyzing DNS Performance from Home Networks}
+\medskip
+\centerline{\bf Nick Feamster, Abhinav Narain}
+
+\bigskip
+]
+\begin{abstract}
+\textit{This paper presents a detailed analysis of DNS performace in Home Networks. We evaluate the effects of DNS caching on DNS performance at various points in the network. We compare the three popular DNS services: the ISP's default DNS, Google Anycast and OpenDNS in \textit{home networks} environment. We try to answer the question: ``Which DNS server is optimal for a home network?"}
+\end{abstract}
+\section{Introduction}
+The Domain Name System (DNS) is a mechanism to map human readable “domain names” to network level “IP addresses” of systems on the internet. It’s hierarchical organization and caching of queries are often quoted as the main reasons for it’s scalability.
+\\
+\\
+The number of homes with high speed internet access is rapidly growing today. There are no recent studies on how the DNS system performs from a home network. In this study, we attempt to profile the existing conditions of DNS performance, from a home user’s perspective.
+\\
+\\
+To improve latency of DNS resolutions, and avoid loading authority servers for a domain with repeated queries, DNS servers cache results for domain names. Caching could be at multiple points between the user and the DNS server: some typical points are a web-browser user’s, home router, or the DNS server itself. We focus on measuring the effectiveness of two critical points of caching: the home router and the DNS server itself.
+\\
+\\
+Further, certain DNS services such as Google’s Anycast and OpenDNS claim to perform better than an ISP’s default DNS that most users use. We also compare performance of each of these and attempt to analyse what choice of DNS is optimal.
+\\
+\\
+In summary, this study attempts to answer the following questions:
+\begin{enumerate}
+\item Is the DNS a bottleneck to web-browsing performance? What percentage of time on the Internet is spent on DNS queries?
+\item How much difference does caching on the home router make, to the above time?
+\item What choice of DNS server would be best for a user?
+\end{enumerate}
+The rest of this paper is organized as follows: Section ~\ref{sec:relatedwork} explores related work, Section ~\ref{sec:methodology} describes the methods we use to study DNS servers and Section ~\ref{sec:results} contains our measurements and our results.
+\section{Related Work}
+\label{sec:relatedwork}
+Previous work on DNS performance focused primarily on performance from large networks, such as a university or an enterprise. Jung et. al. [3] analyze DNS traffic in a large network and measure performance in terms of latency and lookup-failures. Their work suggests that aggressive caching does not improve DNS performance, and that the widespread use of dynamic low-TTL A-record bindings would not degrade DNS performance. However, this study is dated and does not consider performance from a home network’s perspective.
+\\\\
+Certain existing tools like Netalyzr[3] also aim to measure DNS performance, but they only do so from a point of correctness of query results, and do not measure lookup latencies or effects of factors such as caching.
+\section{Experiment Methodology}
+\label{sec:methodology}
+\subsection{Contribution of DNS to browsing time}
+Our aim is to determine what percentage of a user's browsing time is spent in making DNS queries. To do this, we run tcpdump over a long period of time and collect browsing data for a particular home network.
+\\
+\\
+Time taken for DNS queries can be determined by looking at DNS packets from this trace and calculating the time taken between a DNS request and the corresponding DNS response. Time taken for TCP/HTTP queries can be determined similarly. We hope that this metric will give us some idea about how efficient a user’s DNS is, and how much of a bottleneck DNS is in web-browsing. When combined with other metrics, we expect that this will give us a bigger picture of DNS performance.
+\subsection{Effects of Caching in speeding up DNS lookups}
+\subsubsection{Cached vs. Uncached responses}
+We would like to know how effective caching on the remote DNS is. We compare the cached and uncached DNS query latencies on three different DNS servers: the ISP’s default DNS, Google’s Anycast, and OpenDNS.
+\\
+\\
+The latency of a cached query result is called a ``best case latency", and that of an uncached query a ``worst case latency". The questions to answer are:
+\begin{enumerate}
+\item Which of the above DNS Servers performs better in the best case?
+\item Which of the above DNS Servers has a better worst case performance?
+\end{enumerate}
+The above questions have implications in comparing the over-all choice of DNS, as is discussed in section 3.4. We use an innovative method to determine best case and worst case query latencies:
+\begin{itemize}
+\item \textit{Cached responses:} For determining latency of a cached result for a domain “X”, we query the same DNS for X multiple times, noting the TTL values each time. A reducing TTL means that the result is cached: we consider this case to be a cached response and record its latency.
+\item \textit{Uncached responses:} We take advantage of the fact that querying for a domain never encountered before will result in an uncached response. To determine the latency of an uncached response for a domain “X”, we query a DNS server for a randomly generated subdomain of X. We expect that this will almost always force the DNS server to query the authority for the domain X, producing an uncached negative results. We record the latency of such queries to be uncached response times for the domain X.
+\end{itemize}
+\subsubsection{Cache-hit rates}
+We define "Cache hit-rate" as the probability of receiving a cached response for a DNS query.
+We use two methods to determine if a reponse was due to a cache hit:
+\paragraph{By using non-recursive queries:} We used the \textit{dig} utility to perform "nonrecursive" DNS lookups. This enforces that the server doesn’t answer the query through recursive lookups. It replies with an ANSWER section only if the reply is already cached. Thus, we determine whether a record is in the cache by observing whether the no-recurse query resulted in an ANSWER or not.
+\paragraph{By using TTL values:} All the DNS servers in our experiment except OpenDNS support non recursive queries. To estimate cache hit rates for OpenDNS, we use the TTL values of the domain we query. We obtain the maximum TTL value for a domain using the WatchMouse DNS tool\cite{website:Watchmouse:2011:Online}. We verified the accuracy of these values by querying the authorities for the domains, which always return the maximum TTL value. Any response with a TTL value lower than this maximum is a cached response.
+\subsubsection{Effectiveness of Router caching}
+Many home networks use their router as the default DNS. The router runs a basic caching DNS server. We plan to study the effects of this caching.
+To perform this analysis we plan
+\begin{enumerate}
+\item Perform a series of lookups with the router set as the DNS for the host, and note latencies.
+\item Clear the router cache by disabling the DNS server on the router.
+\item Run all the previous queries again and measure latencies.
+\end{enumerate}
+We measure the average time saved by caching on the router over a period of 24 hours, through a longitudinal study using the above method.
+\subsection{Google Anycast vs. OpenDNS vs. the ISP}
+Google's Anycast DNS and OpenDNS are publicly offered services that claim to perform better than an ISP's DNS in terms of latency. In this experiment, we attempt to answer how effective these alternatives are.
+We perform longitudinal studies to profile the lookup latency of these DNS servers. This aims to answer the following questions:
+\begin{itemize}
+\item Which of the above DNS servers is the best choice for popular websites?
+\item For unpopular or obscure websites, which of the above would be the best choice?
+\end{itemize}
+We perform this analysis by using a list of the top 1000 most visited websites, that is maintained by Google’s AdPlanner. We compare the performance of each choice of DNS for top 100 websites, and bottom 100 in the list.
+\section{Measurements and Results of Experiments}
+\label{sec:results}
+We ran longitudinal experiments on a total five home networks to evaluate DNS performance. Each experiment was conducted on three of these five networks to study effects across home networks.
+\subsection{Contribution of DNS to browsing time and Time-of-day effects}
+To study time-of-day effects, we measured query latencies to Alexa's top ten websites on an hourly basis over a period of one week (Figure ~\ref{fig:timeofday}) Surprisingly, we found little time-of-day effects or periodicity in DNS lookup latencies.
+However, we do observe that two of the three networks showed highest latencies at around 6-8pm.
+\subsection{Cache Performance of DNS Servers}
+\subsubsection{Cached vs. Uncached query latencies}
+We measured cached and uncached query latencies in our longitudinal experiments. We also also measured how this latency varies with website popularity, by querying the top 100 and the bottom 100 web-sites from Alexa's\cite{Alexa's} top one million sites list. We call sites that are in the top 100 ``popular sites" and those in the bottom 100, (relatively) unpopular.
+\\
+\\
+It is immediately clear that caching makes a tremendous difference to query latency. Regardless of site popularity, average latencies increase by around 100\% in all cases (more than 400-500\% in case of Google Anycast).
+\\
+\\
+Table ~\ref{cacheLatencyTable} shows query latencies for these measurements. For replies that are cached, there are two interesting observations:
+\begin{enumerate}
+\item Google DNS consistently shows the lowest latencies.
+\item OpenDNS follows Google DNS, consistently outperforming the ISP's DNS.
+\end{enumerate}
+However, when the reply is not cached, things are different:
+\begin{enumerate}
+\item For popular (top 100) sites the ISP's DNS has the lowest latency, followed by Google Anycast.
+\item For unpopular (bottom 100) sites, OpenDNS performs the best, closely followed by the ISP.
+\end{enumerate}
+Thus, there is no clear ``winner" when responses are not cached, since there this varies with popularity of the website. Further, query latency for unpopular sites is always higher than the corresponding query latency for popular sites. An optimal choice of DNS must therefore consider both latency and the popularity of the site.
+\subsubsection{Cache Hit Rates}
+We used the \textit{dig} utility to perform lookups on the popular and unpopular websites as previously. Since certain domains have TTLs larger than 2 hours, which would interfere with bi-hourly measurements, we only considered sites with TTLs of less than 7200 seconds.
+\\
+\\
+Table ~\ref{cacheHitRateTable} shows our measurements. We observed the following:
+\begin{enumerate}
+\item For popular sites, GoogleDNS has the highest cache hit rate by a significant margin of around 30\%. OpenDNS, while being higher than most ISP DNS's, has an average of only around 60\%.
+\item For unpopular sites, the order remains the same although the cache hit rates drop drastically. Google still outperforms the others with a highest average rate of around 9\%.
+\end{enumerate}
+The higher cache hit rates of the Google Anycast service could be attributed to its claim of ``large Google-scale caches and shared caching" ~\cite{website:GoogleDNS:2011:Online}. We also note that Comcast has a higher cache hit rate than DirecPath. This could be attributed to the larger user share of Comcast. However, since our sample space of networks is small, we were unable to generalize this inference.
+\bibliography{CNproposal.bib}
+\begin{figure*}[t!]\footnotesize
+\centering
+\mbox{
+\subfloat[Comcast]{\includegraphics[scale=0.25]{comcasttod.png}}\qquad
+\subfloat[DirecPath]{\includegraphics[scale=0.25]{direcpathtod.png}}\qquad
+}
+\mbox{
+\subfloat[At\&t]{\includegraphics[scale=0.25]{atttod.png}}
+}
+\caption{Time of day latency measurements}
+\label{fig:timeofday}
+\end{figure*}
+\begin{table*}[t!]\footnotesize
+\mbox{
+\subfloat[Latencies for cached queries to top 100 sites]{
+\begin{tabular}{ | c | c | c | c | }
+\hline
+Network (ISP) & ISP's DNS & Google & OpenDNS \\
+\hline
+Comcast & 60.215 & 26.903 & 55.786 \\
+DirecPath & 116.508 & 44.167 & 59.344 \\
+AT\&T & 40.513 & 20.730 & 40.049 \\
+\hline
+Average & 72.412 & 30.6 & 51.72 \\
+\hline
+\end{tabular}
+}\qquad
+\subfloat[Latencies for uncached queries to top 100 sites]{
+\begin{tabular}{ | c | c | c | c | }
+\hline
+Network (ISP) & ISP's DNS & Google & OpenDNS \\
+\hline
+Comcast & 117.44 & 163.226 & 218.533 \\
+DirecPath & 171.897 & 182.387 & 245.655 \\
+AT\&T & 218.158 & 153.789 & 221.522 \\
+\hline
+Average & 169.165 & 166.467 & 228.57 \\
+\hline
+\end{tabular}
+}
+}
+\vspace{7mm}
+\mbox{
+\subfloat[Latencies for cached queries to bottom 100 sites]{
+\begin{tabular}{ | c | c | c | c | }
+\hline
+Network (ISP) & ISP's DNS & Google & OpenDNS \\
+\hline
+Comcast & 136.536 & 37.143 & 52.981 \\
+DirecPath & 150.258 & 41.920 & 54.054 \\
+AT\&T & 43.134 & 24.330 & 37.597 \\
+\hline
+Average & 109.976 & 34.464 & 48.210 \\
+\hline
+\end{tabular}
+}\qquad
+\subfloat[Latencies for uncached queries to bottom 100 sites]{
+\begin{tabular}{ | c | c | c | c | }
+\hline
+Network (ISP) & ISP's DNS & Google & OpenDNS \\
+\hline
+Comcast & 158.845 & 212.087 & 156.185 \\
+DirecPath & 195.954 & 217.709 & 158.837 \\
+AT\&T & 238.955 & 215.670 & 152.931 \\
+\hline
+Average & 197.918 & 215.155 & 155.984 \\
+\hline
+\end{tabular}
+}
+}
+\caption{Query Latency comparisons across DNS services (Times in milliseconds)}
+\label{cacheLatencyTable}
+\end{table*}
+\begin{table*}[t!]\footnotesize
+\mbox{
+\subfloat[Cache hit rates for popular sites]{
+\begin{tabular}{ | c | c | c | c | }
+\hline
+Network (ISP) & ISP's DNS & Google & OpenDNS \\
+\hline
+Comcast & 54.55 & 92.1 & 61.2 \\
+DirecPath Network 1 & 39.55 & 91.38 & 69.33 \\
+Direcpath Network 2 & 35.705 & 89.823 & 55.88 \\
+AT\&T & 2.43 & 91.13 & 65.34 \\
+\hline
+Average & - & 91.11 & 62.94\\
+\hline
+\end{tabular}
+}\qquad
+\subfloat[Cache hit rates for unpopular sites]{
+\begin{tabular}{ | c | c | c | c | }
+\hline
+Network (ISP) & ISP's DNS & Google & OpenDNS \\
+\hline
+Comcast & 1.7 & 9.85 & 6.6\\
+DirecPath Network 1 & 0.62 & 9.88 & 6.69\\
+Direcpath Network 2 & 0.382 & 8.97 & 8.70\\
+AT\&T & 1.17 & 10.52 & 7.22\\
+\hline
+Average & - & 9.81 & 7.3\\
+\hline
+\end{tabular}
+}
+}
+\caption{Cache hit rates}
+\label{cacheHitRateTable}
+\end{table*}
+\end{document}
